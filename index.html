@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="公文轨范（Gongwen Guifan）：遵循中国党政机关公文格式的本地排版工具" />
+  <title>公文轨范 · Gongwen Guifan</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202425;
+      --ink-soft: #69706f;
+      --paper: #fbfaf6;
+      --canvas: #f0eee8;
+      --panel: rgba(255, 255, 255, .72);
+      --line: #dedbd2;
+      --accent: #a3302b;
+      --accent-soft: #f5e6e2;
+      --gold: #a66f2d;
+      --shadow: 0 18px 50px rgba(36, 37, 33, .10);
+      --body-font: "FangSong", "仿宋_GB2312", "STFangsong", "Songti SC", serif;
+      --title-font: "FZXiaoBiaoSong-B05S", "方正小标宋简体", "方正小标宋", "STZhongsong", "华文中宋", serif;
+      --heading-1-font: "SimHei", "黑体", "Heiti SC", sans-serif;
+      --heading-2-font: "KaiTi", "楷体_GB2312", "STKaiti", "Kaiti SC", serif;
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --ink: #edeae0;
+      --ink-soft: #aaa79d;
+      --paper: #272823;
+      --canvas: #191a18;
+      --panel: rgba(40, 41, 36, .82);
+      --line: #45463f;
+      --accent: #e27e76;
+      --accent-soft: #442b29;
+      --gold: #d2a466;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .28);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button, select, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      height: 68px;
+      padding: 0 max(22px, calc((100vw - 1540px) / 2));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--canvas) 88%, transparent);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 190px; }
+    .brand-mark {
+      width: 34px; height: 34px; display: grid; place-items: center;
+      border: 1px solid var(--accent); color: var(--accent); font-family: var(--title-font);
+      font-size: 20px; line-height: 1;
+    }
+    .brand-name { margin: 0; font-family: var(--title-font); font-size: 19px; letter-spacing: .08em; font-weight: 500; }
+    .brand-sub { display: block; margin-top: 2px; font-size: 10px; letter-spacing: .14em; color: var(--ink-soft); text-transform: uppercase; }
+    .top-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .icon-button, .text-button, .button {
+      border: 1px solid transparent; color: var(--ink); background: transparent; min-height: 36px;
+      border-radius: 7px; transition: background .18s ease, border-color .18s ease, color .18s ease;
+    }
+    .icon-button { width: 36px; padding: 0; display: grid; place-items: center; }
+    .icon-button:hover, .text-button:hover { background: var(--accent-soft); color: var(--accent); }
+    .text-button { padding: 0 12px; font-size: 13px; }
+    .button { padding: 0 14px; font-size: 13px; font-weight: 600; }
+    .button-primary { background: var(--accent); color: #fff8f4; border-color: var(--accent); }
+    .button-primary:hover { filter: brightness(.92); }
+    .button-outline { border-color: var(--line); background: var(--panel); }
+    .button-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .icon { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    .workspace {
+      max-width: 1540px; margin: 0 auto; padding: 24px 22px 38px;
+      width: 100%; display: grid; grid-template-columns: minmax(310px, 420px) minmax(560px, 1fr); gap: 24px; align-items: start;
+    }
+    .privacy-footer { width: min(1540px, calc(100% - 44px)); margin: auto auto 0; padding: 0 0 20px; color: var(--ink-soft); font-size: 11px; line-height: 1.7; }
+    .privacy-footer p { display: flex; justify-content: space-between; gap: 18px; margin: 0; padding-top: 14px; border-top: 1px solid var(--line); }
+    .privacy-footer strong { color: var(--ink); font-weight: 600; white-space: nowrap; }
+    .editor-pane, .preview-pane { min-width: 0; }
+    .editor-pane { display: grid; gap: 16px; }
+    .section-card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; box-shadow: 0 6px 18px rgba(36, 37, 33, .025); }
+    .section-card-header { padding: 16px 18px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .section-title { margin: 0; font-size: 14px; font-weight: 650; letter-spacing: .02em; }
+    .section-hint { font-size: 11px; color: var(--ink-soft); }
+    .editor-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 12px; }
+    .tool-chip {
+      min-height: 29px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px;
+      background: transparent; color: var(--ink-soft); font-size: 11px;
+    }
+    .tool-chip:hover { color: var(--accent); border-color: var(--accent); }
+    .source-editor {
+      display: block; width: 100%; min-height: 510px; resize: vertical; border: 0; border-top: 1px solid var(--line);
+      padding: 18px; color: var(--ink); background: transparent; font: 16px/1.85 var(--body-font); outline: 0;
+    }
+    .source-editor::placeholder { color: var(--ink-soft); }
+    .editor-footer { border-top: 1px solid var(--line); padding: 10px 18px 12px; display: flex; align-items: center; justify-content: space-between; color: var(--ink-soft); font-size: 11px; }
+    .save-state { display: inline-flex; align-items: center; gap: 5px; }
+    .save-dot { width: 6px; height: 6px; border-radius: 50%; background: #68a974; }
+
+    .quick-style { padding: 14px 18px 18px; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 10px; }
+    .field { min-width: 0; }
+    .field.full { grid-column: 1 / -1; }
+    label { display: block; margin: 0 0 6px; color: var(--ink-soft); font-size: 11px; }
+    .field-control { width: 100%; min-height: 36px; padding: 0 9px; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; background: color-mix(in srgb, var(--paper) 70%, transparent); font-size: 13px; }
+    .field-control:focus { border-color: var(--accent); }
+    .range-line { display: flex; align-items: center; gap: 9px; }
+    .range-line input { flex: 1; accent-color: var(--accent); }
+    .range-value { width: 36px; color: var(--accent); font-size: 12px; text-align: right; }
+
+    .recognition { padding: 0 18px 17px; }
+    .rule-list { padding: 0; margin: 0; list-style: none; display: grid; gap: 8px; }
+    .rule-item { display: flex; gap: 9px; align-items: flex-start; color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
+    .rule-mark { width: 16px; height: 16px; margin-top: 1px; display: grid; place-items: center; flex: none; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 10px; }
+    .rule-item strong { color: var(--ink); font-weight: 600; }
+
+    .preview-toolbar { min-height: 51px; padding: 0 3px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .document-meta { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .document-meta strong { font-size: 14px; }
+    .document-meta span { color: var(--ink-soft); font-size: 11px; white-space: nowrap; }
+    .preview-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+    .page-stage { overflow: auto; padding: 30px; min-height: calc(100vh - 145px); border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--canvas) 75%, var(--paper)); }
+    .paper {
+      width: 210mm; min-height: 297mm; margin: 0 auto; padding: var(--margin-top, 37mm) var(--margin-right, 26mm) var(--margin-bottom, 35mm) var(--margin-left, 28mm);
+      background: var(--paper); box-shadow: var(--shadow); color: #151515;
+      --doc-size: 16pt; --title-size: 22pt; --doc-leading: 28pt; --paragraph-gap: 0;
+    }
+    [data-theme="dark"] .paper { color: #ece9df; }
+    .document-sheet { min-height: 100%; font-family: var(--body-font); font-size: var(--doc-size); line-height: var(--doc-leading); letter-spacing: .02em; }
+    .doc-title { margin: 0; text-align: center; font-family: var(--title-font); font-size: var(--title-size); line-height: 1.4; letter-spacing: .04em; font-weight: 500; word-break: break-all; }
+    .doc-blank { height: var(--doc-leading); margin: 0; font-size: var(--doc-size); line-height: var(--doc-leading); text-indent: 0; }
+    .doc-body { margin: 0 0 var(--paragraph-gap); text-align: justify; text-justify: inter-ideograph; text-indent: 2em; word-break: break-all; }
+    .doc-addressee { margin: 0 0 var(--paragraph-gap); text-align: justify; text-justify: inter-ideograph; text-indent: 0; word-break: break-all; }
+    .doc-heading { margin: 0 0 var(--paragraph-gap); text-align: justify; text-justify: inter-ideograph; word-break: break-all; }
+    .heading-l1 { font-family: var(--heading-1-font); font-weight: 400; }
+    .heading-l2 { font-family: var(--heading-2-font); font-weight: 400; }
+    .doc-heading.heading-l1, .doc-heading.heading-l2, .doc-heading.heading-l3, .doc-heading.heading-l4 { text-indent: 2em; }
+    .heading-l3 { font-family: var(--body-font); font-weight: 700; }
+    .heading-l4 { font-family: var(--body-font); font-weight: 700; }
+    .inline-heading { text-indent: 2em; }
+    .inline-heading .heading-l1, .inline-heading .heading-l2, .inline-heading .heading-l3, .inline-heading .heading-l4 { text-indent: 0; }
+    .doc-signature { margin: 0 0 0 auto; width: 12em; text-align: center; line-height: var(--doc-leading); }
+    .signature-org { white-space: nowrap; }
+    .signature-date { white-space: nowrap; }
+    .empty-paper { min-height: 170mm; display: grid; place-items: center; color: #999; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; font-size: 12px; letter-spacing: .08em; }
+
+    dialog { width: min(560px, calc(100% - 34px)); padding: 0; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--paper); box-shadow: 0 24px 80px rgba(0,0,0,.26); }
+    dialog::backdrop { background: rgba(20, 22, 20, .42); backdrop-filter: blur(2px); }
+    .settings-head { padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .settings-head h2 { margin: 0; font-size: 16px; }
+    .settings-body { padding: 18px 20px 22px; display: grid; gap: 20px; }
+    .setting-group h3 { margin: 0 0 12px; font-size: 13px; }
+    .margin-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .setting-note { margin: 8px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.55; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .switch-line { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); }
+    .switch-line span { font-size: 13px; }
+    .switch { position: relative; width: 42px; height: 24px; flex: none; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; border-radius: 99px; background: var(--line); transition: .2s; }
+    .slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; border-radius: 50%; background: var(--paper); transition: .2s; }
+    .switch input:checked + .slider { background: var(--accent); }
+    .switch input:checked + .slider::before { transform: translateX(18px); }
+
+    .toast { position: fixed; left: 50%; bottom: 22px; z-index: 30; transform: translate(-50%, 120px); padding: 10px 14px; border-radius: 7px; color: #fff; background: #282927; box-shadow: 0 8px 26px rgba(0,0,0,.18); font-size: 12px; transition: transform .22s ease; }
+    .toast.show { transform: translate(-50%, 0); }
+
+    @media (max-width: 1050px) {
+      .workspace { grid-template-columns: 360px minmax(520px, 1fr); padding-left: 16px; padding-right: 16px; gap: 16px; }
+      .page-stage { padding: 20px; }
+    }
+    @media (max-width: 870px) {
+      .topbar { padding: 0 16px; }
+      .workspace { grid-template-columns: 1fr; max-width: 760px; }
+      .source-editor { min-height: 340px; }
+      .page-stage { min-height: unset; }
+      .paper { transform-origin: top center; }
+    }
+    @media (max-width: 650px) {
+      .brand-sub, .top-actions .text-button { display: none; }
+      .topbar { height: 60px; }
+      .workspace { padding: 16px 10px 28px; }
+      .page-stage { padding: 12px 0; border-left: 0; border-right: 0; border-radius: 0; }
+      .paper { width: 100%; min-height: auto; box-shadow: none; padding-left: 17mm; padding-right: 17mm; }
+      .preview-toolbar { padding: 0 6px 9px; }
+      .document-meta span { display: none; }
+      .button { padding: 0 10px; }
+      .margin-grid { grid-template-columns: 1fr 1fr; }
+      .privacy-footer { width: calc(100% - 20px); padding-bottom: 14px; }
+      .privacy-footer p { display: block; }
+      .privacy-footer span { display: block; margin-top: 3px; }
+    }
+    @media print {
+      @page { size: A4 portrait; margin: 0; }
+      body { background: #fff; }
+      .topbar, .editor-pane, .preview-toolbar, .page-stage::before, .privacy-footer { display: none !important; }
+      .workspace { display: block; padding: 0; max-width: none; }
+      .page-stage { overflow: visible; padding: 0; border: 0; background: #fff; }
+      .paper { width: 210mm; min-height: 297mm; margin: 0; box-shadow: none; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="公文轨范 Gongwen Guifan">
+        <div class="brand-mark" aria-hidden="true">文</div>
+        <div>
+          <p class="brand-name">公文轨范</p>
+          <span class="brand-sub">Gongwen Guifan</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="text-button" id="loadSample" type="button">示例文稿</button>
+        <button class="icon-button" id="themeButton" type="button" aria-label="切换夜间模式" title="切换日间／夜间模式">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.64 5.64l1.42 1.42M16.94 16.94l1.42 1.42M18.36 5.64l-1.42 1.42M7.06 16.94l-1.42 1.42"/><circle cx="12" cy="12" r="4"/></svg>
+        </button>
+        <button class="icon-button" id="settingsButton" type="button" aria-label="打开排版设置" title="排版设置">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V20.3h-3v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.08 15a1.7 1.7 0 0 0-1.55-1H5.4v-3h.13a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06L8.8 5.94l.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1-1.55V4.7h3v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06A1.7 1.7 0 0 0 19.4 10a1.7 1.7 0 0 0 1.55 1h.13v3h-.13a1.7 1.7 0 0 0-1.55 1Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <aside class="editor-pane" aria-label="公文编辑器">
+        <section class="section-card">
+          <div class="section-card-header">
+            <div>
+              <h1 class="section-title">文稿内容</h1>
+              <span class="section-hint">粘贴原稿，按段落换行</span>
+            </div>
+            <button class="text-button" id="clearContent" type="button">清空</button>
+          </div>
+          <div class="editor-toolbar" aria-label="快捷插入">
+            <button class="tool-chip" data-insert="一、" type="button">一、 一级</button>
+            <button class="tool-chip" data-insert="（一）" type="button">（一）二级</button>
+            <button class="tool-chip" data-insert="1. " type="button">1. 三级</button>
+            <button class="tool-chip" data-insert="（1）" type="button">（1）四级</button>
+            <button class="tool-chip" id="cleanMarkdown" type="button">清理 Markdown</button>
+            <button class="tool-chip" id="signatureButton" type="button">插入落款</button>
+          </div>
+          <textarea id="sourceText" class="source-editor" spellcheck="false" aria-label="公文原稿输入区" placeholder="在此粘贴或输入文稿。&#10;&#10;首行会自动判断为标题；标题过长时将按版心宽度自然分成两至三行。&#10;支持：一、　（一）　1.　（1）及“一是、二是、三是”等层级识别。"></textarea>
+          <div class="editor-footer">
+            <span id="wordCount">0 字 · 0 段</span>
+            <span class="save-state"><i class="save-dot" aria-hidden="true"></i><span id="saveState">已自动保存</span></span>
+          </div>
+        </section>
+
+        <section class="section-card">
+          <div class="section-card-header">
+            <div>
+              <h2 class="section-title">快捷样式</h2>
+              <span class="section-hint">常用正文规格</span>
+            </div>
+          </div>
+          <div class="quick-style">
+            <div class="field-grid">
+              <div class="field">
+                <label for="quickFont">正文字体</label>
+                <select class="field-control" id="quickFont">
+                  <option value="fangsong">仿宋_GB2312</option>
+                  <option value="simsun">宋体</option>
+                  <option value="kaiti">楷体</option>
+                  <option value="heiti">黑体</option>
+                  <option value="yahei">微软雅黑</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="quickSize">正文字号</label>
+                <select class="field-control" id="quickSize"></select>
+              </div>
+              <div class="field full">
+                <label for="quickLine">固定值行距（磅）</label>
+                <input class="field-control" id="quickLine" type="number" min="18" max="60" step="0.5" value="28" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section-card">
+          <div class="section-card-header">
+            <div>
+              <h2 class="section-title">识别结果</h2>
+              <span class="section-hint">可直接在原稿中修改后自动更新</span>
+            </div>
+          </div>
+          <div class="recognition">
+            <ul class="rule-list" id="recognitionList"></ul>
+          </div>
+        </section>
+      </aside>
+
+      <section class="preview-pane" aria-label="A4 公文预览">
+        <div class="preview-toolbar">
+          <div class="document-meta"><strong>A4 排版预览</strong><span id="previewScale">210 × 297 mm</span></div>
+          <div class="preview-actions">
+            <button class="button button-outline" id="copyText" type="button">复制纯文本</button>
+            <select class="field-control" id="wordFormat" aria-label="选择 Word 格式" style="width: 84px;"><option value="docx">DOCX</option><option value="doc">DOC</option></select>
+            <button class="button button-outline" id="downloadWord" type="button">导出 Word</button>
+            <button class="button button-outline" id="downloadText" type="button">导出 TXT</button>
+            <button class="button button-primary" id="printDocument" type="button">打印 / 导出 PDF</button>
+          </div>
+        </div>
+        <div class="page-stage">
+          <article class="paper" id="paper" aria-label="公文页面预览">
+            <div id="documentSheet" class="document-sheet">
+              <div class="empty-paper">在左侧输入文稿后生成公文版式</div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </section>
+    <footer class="privacy-footer">
+      <p><strong>公文轨范 · Gongwen Guifan</strong><span>所有文本识别、排版与导出均在当前浏览器本地完成，不会上传至服务器或与第三方共享；内容仅保存在您的设备浏览器本地。</span></p>
+    </footer>
+  </main>
+
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <form method="dialog">
+      <div class="settings-head">
+        <h2 id="settingsTitle">排版设置</h2>
+        <button class="icon-button" value="cancel" aria-label="关闭设置" type="submit">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div class="settings-body">
+        <section class="setting-group">
+          <h3>页面与段落</h3>
+          <div class="margin-grid">
+            <div class="field"><label for="marginTop">上边距（mm）</label><input class="field-control" id="marginTop" type="number" min="15" max="60" value="37" /></div>
+            <div class="field"><label for="marginBottom">下边距（mm）</label><input class="field-control" id="marginBottom" type="number" min="15" max="60" value="35" /></div>
+            <div class="field"><label for="marginLeft">左边距（mm）</label><input class="field-control" id="marginLeft" type="number" min="15" max="60" value="28" /></div>
+            <div class="field"><label for="marginRight">右边距（mm）</label><input class="field-control" id="marginRight" type="number" min="15" max="60" value="26" /></div>
+          </div>
+          <p class="setting-note">默认版心参照《党政机关公文格式》常用 A4 设置：上 37 mm、下 35 mm、左 28 mm、右 26 mm。</p>
+          <div class="field-grid" style="margin-top: 13px;">
+            <div class="field"><label for="paragraphGap">段后间距（em）</label><input class="field-control" id="paragraphGap" type="number" min="0" max="2" step="0.05" value="0" /></div>
+            <div class="field"><label for="fixedLine">固定行距（磅）</label><input class="field-control" id="fixedLine" type="number" min="18" max="60" step="0.5" value="28" /></div>
+            <div class="field"><label for="titleSize">标题字号</label><select class="field-control" id="titleSize"></select></div>
+          </div>
+        </section>
+        <section class="setting-group">
+          <h3>字体层级</h3>
+          <div class="field-grid">
+            <div class="field"><label for="titleFont">标题字体</label><select class="field-control" id="titleFont"></select></div>
+            <div class="field"><label for="headingOneFont">一级标题</label><select class="field-control" id="headingOneFont"></select></div>
+            <div class="field"><label for="headingTwoFont">二级标题</label><select class="field-control" id="headingTwoFont"></select></div>
+            <div class="field"><label for="headingOtherFont">三级、四级标题</label><select class="field-control" id="headingOtherFont"></select></div>
+          </div>
+          <p class="setting-note">默认采用：标题二号方正小标宋简体；一级黑体；二级楷体；三级、四级仿宋。</p>
+        </section>
+        <section class="setting-group">
+          <div class="switch-line"><span>自动识别首行标题与标题层级</span><label class="switch"><input id="autoDetect" type="checkbox" checked /><i class="slider"></i></label></div>
+          <div class="switch-line"><span>夜间模式</span><label class="switch"><input id="themeSwitch" type="checkbox" /><i class="slider"></i></label></div>
+        </section>
+        <div class="dialog-actions">
+          <button class="button button-outline" id="restoreDefaults" type="button">恢复标准值</button>
+          <button class="button button-primary" value="default" type="submit">完成</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      const FONT_STACKS = {
+        fangsong: '"FangSong", "仿宋_GB2312", "STFangsong", "Songti SC", serif',
+        simsun: '"SimSun", "宋体", "Songti SC", serif',
+        kaiti: '"KaiTi", "楷体_GB2312", "STKaiti", "Kaiti SC", serif',
+        heiti: '"SimHei", "黑体", "Heiti SC", sans-serif',
+        yahei: '"Microsoft YaHei", "PingFang SC", sans-serif',
+        zhongSong: '"STZhongsong", "华文中宋", "SimSun", "宋体", serif'
+      };
+      const FONT_OPTIONS = [
+        ['fangsong', '仿宋_GB2312'], ['simsun', '宋体'], ['kaiti', '楷体'], ['heiti', '黑体'], ['zhongSong', '方正小标宋简体'], ['yahei', '微软雅黑']
+      ];
+      const SIZE_OPTIONS = [
+        ['yi', '一号（26 pt）', 26], ['xiaoyi', '小一（24 pt）', 24], ['er', '二号（22 pt）', 22], ['xiaoer', '小二（18 pt）', 18],
+        ['san', '三号（16 pt）', 16], ['xiaosan', '小三（15 pt）', 15], ['si', '四号（14 pt）', 14], ['xiaosi', '小四（12 pt）', 12],
+        ['wu', '五号（10.5 pt）', 10.5], ['xiaowu', '小五（9 pt）', 9]
+      ];
+      const DEFAULTS = {
+        bodyFont: 'fangsong', bodySize: 'san', fixedLine: 28,
+        titleSize: 'er', titleFont: 'zhongSong', headingOneFont: 'heiti', headingTwoFont: 'kaiti', headingOtherFont: 'fangsong',
+        marginTop: 37, marginBottom: 35, marginLeft: 28, marginRight: 26, paragraphGap: 0, autoDetect: true, theme: 'light'
+      };
+      const SAMPLE = `关于规范机关公文办理工作的通知
+
+各部门、各单位：
+
+为提升机关运行质效，现就规范公文办理工作通知如下。
+
+一、规范起草流程
+
+（一）严把文稿质量
+起草文稿应主题鲜明、表述准确、文字精炼。
+
+二、提升流转效率
+
+（一）优化审核流程
+
+1. 明确办理时限。
+
+（1）压实岗位责任。
+
+一是加强统筹协调。二是做好归档管理。
+
+请结合实际抓好落实。
+
+中共XXXXXX委员会
+2026年7月11日`;
+
+      const $ = (id) => document.getElementById(id);
+      const els = {
+        source: $('sourceText'), paper: $('paper'), sheet: $('documentSheet'), wordCount: $('wordCount'), saveState: $('saveState'),
+        quickFont: $('quickFont'), quickSize: $('quickSize'), quickLine: $('quickLine'), fixedLine: $('fixedLine'),
+        titleSize: $('titleSize'), titleFont: $('titleFont'), headingOneFont: $('headingOneFont'), headingTwoFont: $('headingTwoFont'), headingOtherFont: $('headingOtherFont'),
+        marginTop: $('marginTop'), marginBottom: $('marginBottom'), marginLeft: $('marginLeft'), marginRight: $('marginRight'), paragraphGap: $('paragraphGap'),
+        autoDetect: $('autoDetect'), dialog: $('settingsDialog'), themeSwitch: $('themeSwitch'), themeButton: $('themeButton'), recognition: $('recognitionList'), toast: $('toast')
+      };
+      let settings = loadSettings();
+      let saveTimer;
+
+      function loadSettings() {
+        try { return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem('official-document-settings')) || {}) }; }
+        catch { return { ...DEFAULTS }; }
+      }
+      function sizeValue(key) { return SIZE_OPTIONS.find((item) => item[0] === key)?.[2] || 16; }
+      function escapeHtml(value) { return value.replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
+      function hasEndPunctuation(text) { return /[。！？；：]$/.test(text.trim()); }
+      function isDate(text) { return /^(?:\d{4}年\d{1,2}月\d{1,2}日|二〇[〇一二三四五六七八九十]{2}年[一二三四五六七八九十]{1,3}月[一二三四五六七八九十]{1,3}日)$/.test(text.replace(/\s/g, '')); }
+      function isTitleCandidate(text) {
+        const compact = text.replace(/\s/g, '');
+        if (!compact || compact.length > 72 || hasHeadingPrefix(compact) || isDate(compact)) return false;
+        if (/[:：]$/.test(compact)) return false;
+        if (/^(附件|主送|抄送|发文机关|签发人|主题词|印发机关|\d{4}〔)/.test(compact)) return false;
+        return !/[。！？；]$/.test(compact);
+      }
+      function hasHeadingPrefix(text) { return /^(?:[一二三四五六七八九十]+、|[（(][一二三四五六七八九十]+[）)]|\d+[\.、]|[（(]\d+[）)]|[一二三四五六七八九十]是)/.test(text.trim()); }
+      function getHeading(text) {
+        const value = text.trim();
+        let match = value.match(/^([一二三四五六七八九十]+、)(.*)$/);
+        if (match) return { level: 1, prefix: match[1], rest: match[2].trim() };
+        match = value.match(/^([（(][一二三四五六七八九十]+[）)])(.*)$/);
+        if (match) return { level: 2, prefix: match[1], rest: match[2].trim() };
+        match = value.match(/^(\d+[\.、])(.*)$/);
+        if (match) return { level: 3, prefix: match[1], rest: match[2].trim() };
+        match = value.match(/^([（(]\d+[）)])(.*)$/);
+        if (match) return { level: 4, prefix: match[1], rest: match[2].trim() };
+        match = value.match(/^([一二三四五六七八九十]是)(.*)$/);
+        if (match) return { level: 3, prefix: match[1], rest: match[2].trim(), isNarrative: true };
+        return null;
+      }
+      function splitNarrativeTitleLine(text) {
+        const value = text.trim();
+        const pattern = /([一二三四五六七八九十]是)([^。！？；]+[。！？；]?)/g;
+        const headings = [];
+        let cursor = 0;
+        let match;
+        while ((match = pattern.exec(value))) {
+          if (value.slice(cursor, match.index).trim()) return null;
+          const rest = match[2].trim();
+          if (!rest) return null;
+          headings.push({
+            type: 'heading',
+            text: `${match[1]}${rest}`,
+            heading: { level: 3, prefix: match[1], rest, isNarrative: true, forceStandalone: true }
+          });
+          cursor = pattern.lastIndex;
+        }
+        return headings.length > 1 && cursor === value.length ? headings : null;
+      }
+      function isAddressee(text) {
+        const value = text.trim();
+        return /^[\u3400-\u9fffA-Za-z0-9、，,（）()·]{2,36}[：:]$/.test(value)
+          && !/^(?:附件|主送|抄送|发文机关|主题词)[：:]$/.test(value);
+      }
+      function splitInlineHeading(heading) {
+        const whole = `${heading.prefix}${heading.rest}`;
+        if (heading.isNarrative) {
+          if (heading.forceStandalone) return { label: whole, body: '' };
+          const content = heading.rest.replace(/\s/g, '');
+          const hasMultipleSentences = /[。！？；].+/.test(content);
+          const isLongParagraph = content.length > 26 || hasMultipleSentences;
+          return isLongParagraph ? { label: heading.prefix, body: heading.rest } : { label: whole, body: '' };
+        }
+        const stop = heading.rest.search(/[。；：]/);
+        if (stop > -1 && stop < heading.rest.length - 1) {
+          return { label: `${heading.prefix}${heading.rest.slice(0, stop + 1)}`, body: heading.rest.slice(stop + 1).trim() };
+        }
+        return { label: whole, body: '' };
+      }
+      function signatureFrom(lines) {
+        const copy = [...lines];
+        while (copy.length && !copy[copy.length - 1].trim()) copy.pop();
+        if (copy.length < 2 || !isDate(copy[copy.length - 1])) return { lines, signature: null };
+        const date = copy.pop().trim();
+        while (copy.length && !copy[copy.length - 1].trim()) copy.pop();
+        const org = copy[copy.length - 1]?.trim();
+        if (!org || org.length > 28 || hasEndPunctuation(org) || hasHeadingPrefix(org)) return { lines, signature: null };
+        copy.pop();
+        while (copy.length && !copy[copy.length - 1].trim()) copy.pop();
+        return { lines: copy, signature: { org, date } };
+      }
+      function analyze(text) {
+        const normalizedText = settings.autoDetect && looksLikeMarkdown(text) ? cleanMarkdown(text) : text;
+        const rawLines = normalizedText.replace(/\r\n?/g, '\n').split('\n');
+        const data = settings.autoDetect ? signatureFrom(rawLines) : { lines: rawLines, signature: null };
+        const lines = data.lines.map((text, index) => ({ text: text.trim(), index })).filter((line) => line.text);
+        let titleLineIndex = -1;
+        if (settings.autoDetect) {
+          const titlePosition = lines.findIndex((line, index) => index < 4 && isTitleCandidate(line.text));
+          titleLineIndex = titlePosition > -1 ? lines[titlePosition].index : -1;
+        }
+        const blocks = lines.flatMap((line) => {
+          if (line.index === titleLineIndex) return [{ type: 'title', text: line.text }];
+          if (settings.autoDetect && isAddressee(line.text)) return [{ type: 'addressee', text: line.text }];
+          const narrativeTitles = settings.autoDetect ? splitNarrativeTitleLine(line.text) : null;
+          if (narrativeTitles) return narrativeTitles;
+          const heading = settings.autoDetect ? getHeading(line.text) : null;
+          return [heading ? { type: 'heading', text: line.text, heading } : { type: 'body', text: line.text }];
+        });
+        return { blocks, signature: data.signature };
+      }
+      function renderBlock(block) {
+        if (block.type === 'title') return `<h1 class="doc-title">${escapeHtml(block.text)}</h1><p class="doc-blank" aria-hidden="true">&nbsp;</p>`;
+        if (block.type === 'addressee') return `<p class="doc-addressee">${escapeHtml(block.text)}</p>`;
+        if (block.type === 'body') return `<p class="doc-body">${escapeHtml(block.text)}</p>`;
+        const heading = block.heading;
+        const split = splitInlineHeading(heading);
+        const className = `heading-l${heading.level}`;
+        if (!split.body) return `<p class="doc-heading ${className}">${escapeHtml(split.label)}</p>`;
+        return `<p class="doc-body inline-heading"><span class="${className}">${escapeHtml(split.label)}</span>${escapeHtml(split.body)}</p>`;
+      }
+      function render() {
+        const text = els.source.value.trim();
+        const analysis = analyze(text);
+        if (!text) els.sheet.innerHTML = '<div class="empty-paper">在左侧输入文稿后生成公文版式</div>';
+        else {
+          const content = analysis.blocks.map(renderBlock).join('');
+          const signature = analysis.signature ? `<p class="doc-blank" aria-hidden="true">&nbsp;</p><div class="doc-signature"><div class="signature-org">${escapeHtml(analysis.signature.org)}</div><div class="signature-date">${escapeHtml(analysis.signature.date)}</div></div>` : '';
+          els.sheet.innerHTML = content + signature;
+        }
+        renderRecognition(analysis);
+        updateCounter(analysis);
+      }
+      function renderRecognition(analysis) {
+        const titles = analysis.blocks.filter((block) => block.type === 'title').length;
+        const levels = [1, 2, 3, 4].map((level) => analysis.blocks.filter((block) => block.type === 'heading' && block.heading.level === level).length);
+        const rows = [];
+        if (titles) rows.push(['已识别标题', '首行按二号标题排版，长标题会自动换行居中。']);
+        if (levels.some(Boolean)) {
+          const label = levels.map((count, index) => count ? `${['一','二','三','四'][index]}级 ${count}` : '').filter(Boolean).join(' · ');
+          rows.push(['已识别层级标题', label]);
+        }
+        if (analysis.blocks.some((block) => block.type === 'heading' && block.heading.isNarrative)) rows.push(['已识别“×是”条目', '短句整行按三级标题加粗；较长段落仅加粗“一是、二是、三是”引导语。']);
+        if (analysis.blocks.some((block) => block.type === 'addressee')) rows.push(['已识别抬头', '以“民政局：”“各部门：”等结尾的抬头不作首行缩进。']);
+        if (analysis.signature) rows.push(['已识别落款', '单位名称与日期已靠右对齐排版。']);
+        if (!rows.length) rows.push(['等待识别', settings.autoDetect ? '未找到可确定的标题层级，正文将按首行缩进排版。' : '自动识别已关闭，全部内容按正文排版。']);
+        els.recognition.innerHTML = rows.map(([title, description]) => `<li class="rule-item"><span class="rule-mark">✓</span><span><strong>${title}</strong><br>${description}</span></li>`).join('');
+      }
+      function updateCounter(analysis) {
+        const chars = els.source.value.replace(/\s/g, '').length;
+        const paragraphs = analysis.blocks.filter((block) => block.type !== 'title').length;
+        els.wordCount.textContent = `${chars} 字 · ${paragraphs} 段`;
+      }
+      function populateSelects() {
+        const sizeMarkup = SIZE_OPTIONS.map(([key, label]) => `<option value="${key}">${label}</option>`).join('');
+        const fontMarkup = FONT_OPTIONS.map(([key, label]) => `<option value="${key}">${label}</option>`).join('');
+        els.quickSize.innerHTML = sizeMarkup;
+        els.titleSize.innerHTML = sizeMarkup;
+        [els.titleFont, els.headingOneFont, els.headingTwoFont, els.headingOtherFont].forEach((select) => { select.innerHTML = fontMarkup; });
+      }
+      function syncControls() {
+        els.quickFont.value = settings.bodyFont;
+        els.quickSize.value = settings.bodySize;
+        els.quickLine.value = settings.fixedLine;
+        els.fixedLine.value = settings.fixedLine;
+        els.titleSize.value = settings.titleSize;
+        els.titleFont.value = settings.titleFont;
+        els.headingOneFont.value = settings.headingOneFont;
+        els.headingTwoFont.value = settings.headingTwoFont;
+        els.headingOtherFont.value = settings.headingOtherFont;
+        els.marginTop.value = settings.marginTop;
+        els.marginBottom.value = settings.marginBottom;
+        els.marginLeft.value = settings.marginLeft;
+        els.marginRight.value = settings.marginRight;
+        els.paragraphGap.value = settings.paragraphGap;
+        els.autoDetect.checked = settings.autoDetect;
+        els.themeSwitch.checked = settings.theme === 'dark';
+      }
+      function applySettings() {
+        document.documentElement.dataset.theme = settings.theme;
+        document.documentElement.style.setProperty('--body-font', FONT_STACKS[settings.bodyFont]);
+        document.documentElement.style.setProperty('--title-font', FONT_STACKS[settings.titleFont]);
+        document.documentElement.style.setProperty('--heading-1-font', FONT_STACKS[settings.headingOneFont]);
+        document.documentElement.style.setProperty('--heading-2-font', FONT_STACKS[settings.headingTwoFont]);
+        els.paper.style.setProperty('--doc-size', `${sizeValue(settings.bodySize)}pt`);
+        els.paper.style.setProperty('--title-size', `${sizeValue(settings.titleSize)}pt`);
+        els.paper.style.setProperty('--doc-leading', `${settings.fixedLine}pt`);
+        els.paper.style.setProperty('--paragraph-gap', `${settings.paragraphGap}em`);
+        els.paper.style.setProperty('--margin-top', `${settings.marginTop}mm`);
+        els.paper.style.setProperty('--margin-bottom', `${settings.marginBottom}mm`);
+        els.paper.style.setProperty('--margin-left', `${settings.marginLeft}mm`);
+        els.paper.style.setProperty('--margin-right', `${settings.marginRight}mm`);
+        els.themeButton.setAttribute('aria-label', settings.theme === 'dark' ? '切换日间模式' : '切换夜间模式');
+        syncControls();
+        render();
+        persist();
+      }
+      function persist() {
+        localStorage.setItem('official-document-settings', JSON.stringify(settings));
+        localStorage.setItem('official-document-content', els.source.value);
+        clearTimeout(saveTimer);
+        els.saveState.textContent = '正在保存';
+        saveTimer = setTimeout(() => { els.saveState.textContent = '已自动保存'; }, 250);
+      }
+      function notify(message) {
+        els.toast.textContent = message;
+        els.toast.classList.add('show');
+        clearTimeout(els.toast._timer);
+        els.toast._timer = setTimeout(() => els.toast.classList.remove('show'), 2100);
+      }
+      function updateSetting(key, value) { settings[key] = value; applySettings(); }
+      function readNumber(input, key) { const value = Number(input.value); if (Number.isFinite(value)) updateSetting(key, value); }
+      function insertText(value) {
+        const start = els.source.selectionStart; const end = els.source.selectionEnd;
+        els.source.setRangeText(value, start, end, 'end'); els.source.focus();
+        render(); persist();
+      }
+      function looksLikeMarkdown(text) {
+        return /(^|\n)\s*(?:#{1,6}\s+|[-+*]\s+|>\s+|\d+[.)]\s+)|\*\*[^*\n]+\*\*|__[^_\n]+__|\[[^\]]+\]\([^\s)]+\)/.test(text);
+      }
+      function cleanMarkdown(text) {
+        let inCodeBlock = false;
+        const cleaned = text.replace(/\r\n?/g, '\n').split('\n').map((sourceLine) => {
+          let line = sourceLine.replace(/^\s+|\s+$/g, '');
+          if (/^(?:```|~~~)/.test(line)) { inCodeBlock = !inCodeBlock; return ''; }
+          if (inCodeBlock) return line;
+          line = line.replace(/^#{1,6}\s+(?=\S)/, '');
+          line = line.replace(/^>\s?/, '');
+          line = line.replace(/^[-+*]\s+(?=\S)/, '');
+          line = line.replace(/^\d+[)]\s+(?=\S)/, (match) => `${match.match(/^\d+/)[0]}. `);
+          line = line.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1');
+          line = line.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+          line = line.replace(/`([^`]+)`/g, '$1');
+          line = line.replace(/(\*\*|__)(.+?)\1/g, '$2');
+          line = line.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1$2');
+          line = line.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1$2');
+          line = line.replace(/~~(.+?)~~/g, '$1');
+          return line.replace(/\\([#*_[\]()`>+!~-])/g, '$1');
+        }).join('\n').replace(/\n{3,}/g, '\n\n');
+        return cleaned.replace(/^\n+|\n+$/g, '');
+      }
+      function cleanSourceMarkdown() {
+        const original = els.source.value;
+        const cleaned = cleanMarkdown(original);
+        if (cleaned === original) { notify('未发现需要清理的 Markdown 标记'); return; }
+        els.source.value = cleaned; render(); persist(); notify('已清理 Markdown 标记并重新排版');
+      }
+      function loadSample() { els.source.value = SAMPLE; render(); persist(); notify('已载入示例文稿'); }
+      function copyText() {
+        const copy = () => { navigator.clipboard?.writeText(els.source.value).then(() => notify('已复制纯文本'), () => fallbackCopy()); };
+        const fallbackCopy = () => { els.source.select(); document.execCommand('copy'); notify('已复制纯文本'); };
+        navigator.clipboard ? copy() : fallbackCopy();
+      }
+      function downloadText() {
+        const file = new Blob([els.source.value], { type: 'text/plain;charset=utf-8' });
+        downloadBlob(file, '公文轨范文稿.txt'); notify('已导出 TXT 文稿');
+      }
+      function downloadBlob(file, filename) {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(file); link.download = filename; link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 600);
+      }
+      function wordHtml(analysis) {
+        const font = FONT_STACKS[settings.bodyFont];
+        const headingFont = (key) => FONT_STACKS[key];
+        const style = `@page { size: A4; margin: ${settings.marginTop}mm ${settings.marginRight}mm ${settings.marginBottom}mm ${settings.marginLeft}mm; } body { font-family:${font}; font-size:${sizeValue(settings.bodySize)}pt; line-height:${settings.fixedLine}pt; } p { margin:0; text-align:justify; text-justify:inter-ideograph; } .title { text-align:center; font-family:${FONT_STACKS[settings.titleFont]}; font-size:${sizeValue(settings.titleSize)}pt; line-height:1.4; } .blank { height:${settings.fixedLine}pt; line-height:${settings.fixedLine}pt; font-size:${sizeValue(settings.bodySize)}pt; } .body { text-indent:2em; } .addressee { text-indent:0; } .h1 { font-family:${headingFont(settings.headingOneFont)}; text-indent:2em; } .h2 { font-family:${headingFont(settings.headingTwoFont)}; text-indent:2em; } .h3 { font-family:${headingFont(settings.headingOtherFont)}; font-weight:bold; text-indent:2em; } .h4 { font-family:${headingFont(settings.headingOtherFont)}; font-weight:bold; text-indent:2em; } .sign { text-align:right; }`;
+        const blocks = analysis.blocks.map((block) => {
+          if (block.type === 'title') return `<p class="title">${escapeHtml(block.text)}</p><p class="blank">&nbsp;</p>`;
+          if (block.type === 'addressee') return `<p class="addressee">${escapeHtml(block.text)}</p>`;
+          if (block.type === 'body') return `<p class="body">${escapeHtml(block.text)}</p>`;
+          const split = splitInlineHeading(block.heading);
+          const level = `h${block.heading.level}`;
+          if (!split.body) return `<p class="${level}">${escapeHtml(split.label)}</p>`;
+          return `<p class="body"><span class="${level}">${escapeHtml(split.label)}</span>${escapeHtml(split.body)}</p>`;
+        }).join('');
+        const signature = analysis.signature ? `<p class="blank">&nbsp;</p><p class="sign">${escapeHtml(analysis.signature.org)}<br>${escapeHtml(analysis.signature.date)}</p>` : '';
+        return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>${style}</style></head><body>${blocks}${signature}</body></html>`;
+      }
+      function xmlEscape(value) { return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&apos;', '"': '&quot;' })[char]); }
+      function docxFont(key) { return ({ fangsong: '仿宋_GB2312', simsun: '宋体', kaiti: '楷体_GB2312', heiti: '黑体', yahei: '微软雅黑', zhongSong: '方正小标宋简体' })[key] || '仿宋_GB2312'; }
+      function docxRun(text, fontKey, sizeKey, isBold = false) {
+        const font = xmlEscape(docxFont(fontKey));
+        return `<w:r><w:rPr><w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:eastAsia="${font}"/>${isBold ? '<w:b/>' : ''}<w:sz w:val="${Math.round(sizeValue(sizeKey) * 2)}"/><w:szCs w:val="${Math.round(sizeValue(sizeKey) * 2)}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r>`;
+      }
+      function docxParagraph(runs, properties = '', before = 0, after = 0) {
+        const space = `<w:spacing${before ? ` w:before="${before}"` : ''}${after ? ` w:after="${after}"` : ''} w:line="${Math.round(settings.fixedLine * 20)}" w:lineRule="exact"/>`;
+        return `<w:p><w:pPr>${properties}${space}</w:pPr>${runs}</w:p>`;
+      }
+      function documentXml(analysis) {
+        const bodySize = settings.bodySize;
+        const headingFont = (level) => level === 1 ? settings.headingOneFont : level === 2 ? settings.headingTwoFont : settings.headingOtherFont;
+        const blankParagraph = () => docxParagraph(docxRun('\u00A0', settings.bodyFont, bodySize));
+        const paragraphs = analysis.blocks.flatMap((block) => {
+          if (block.type === 'title') return [docxParagraph(docxRun(block.text, settings.titleFont, settings.titleSize), '<w:jc w:val="center"/>'), blankParagraph()];
+          if (block.type === 'addressee') return docxParagraph(docxRun(block.text, settings.bodyFont, bodySize), '<w:jc w:val="both"/>');
+          if (block.type === 'body') return docxParagraph(docxRun(block.text, settings.bodyFont, bodySize), '<w:ind w:firstLineChars="200"/><w:jc w:val="both"/>');
+          const split = splitInlineHeading(block.heading);
+          const font = headingFont(block.heading.level);
+          const headingProperties = '<w:ind w:firstLineChars="200"/><w:jc w:val="both"/>';
+          const isBoldHeading = block.heading.level === 3 || block.heading.level === 4;
+          if (!split.body) return docxParagraph(docxRun(split.label, font, bodySize, isBoldHeading), headingProperties);
+          return docxParagraph(docxRun(split.label, font, bodySize, isBoldHeading) + docxRun(split.body, settings.bodyFont, bodySize), '<w:ind w:firstLineChars="200"/><w:jc w:val="both"/>');
+        });
+        if (analysis.signature) {
+          paragraphs.push(blankParagraph());
+          paragraphs.push(docxParagraph(docxRun(analysis.signature.org, settings.bodyFont, bodySize), '<w:jc w:val="right"/>'));
+          paragraphs.push(docxParagraph(docxRun(analysis.signature.date, settings.bodyFont, bodySize), '<w:jc w:val="right"/>'));
+        }
+        const twips = (mm) => Math.round(Number(mm) * 56.6929);
+        const section = `<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="${twips(settings.marginTop)}" w:right="${twips(settings.marginRight)}" w:bottom="${twips(settings.marginBottom)}" w:left="${twips(settings.marginLeft)}" w:header="851" w:footer="992" w:gutter="0"/></w:sectPr>`;
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paragraphs.join('')}${section}</w:body></w:document>`;
+      }
+      function crc32(bytes) {
+        let crc = 0 ^ -1;
+        for (let index = 0; index < bytes.length; index += 1) {
+          crc ^= bytes[index];
+          for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+        }
+        return (crc ^ -1) >>> 0;
+      }
+      function u16(view, offset, value) { view.setUint16(offset, value, true); }
+      function u32(view, offset, value) { view.setUint32(offset, value, true); }
+      function joinBytes(chunks) {
+        const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0); const result = new Uint8Array(total); let offset = 0;
+        chunks.forEach((chunk) => { result.set(chunk, offset); offset += chunk.length; }); return result;
+      }
+      function zip(files) {
+        const encoder = new TextEncoder(); let offset = 0; const locals = []; const centrals = [];
+        files.forEach(([name, content]) => {
+          const nameBytes = encoder.encode(name); const data = typeof content === 'string' ? encoder.encode(content) : content; const crc = crc32(data);
+          const local = new Uint8Array(30 + nameBytes.length + data.length); const localView = new DataView(local.buffer);
+          u32(localView, 0, 0x04034b50); u16(localView, 4, 20); u16(localView, 6, 0x0800); u16(localView, 8, 0); u16(localView, 10, 0); u16(localView, 12, 0); u32(localView, 14, crc); u32(localView, 18, data.length); u32(localView, 22, data.length); u16(localView, 26, nameBytes.length); u16(localView, 28, 0); local.set(nameBytes, 30); local.set(data, 30 + nameBytes.length);
+          const central = new Uint8Array(46 + nameBytes.length); const centralView = new DataView(central.buffer);
+          u32(centralView, 0, 0x02014b50); u16(centralView, 4, 20); u16(centralView, 6, 20); u16(centralView, 8, 0x0800); u16(centralView, 10, 0); u16(centralView, 12, 0); u16(centralView, 14, 0); u32(centralView, 16, crc); u32(centralView, 20, data.length); u32(centralView, 24, data.length); u16(centralView, 28, nameBytes.length); u16(centralView, 30, 0); u16(centralView, 32, 0); u16(centralView, 34, 0); u16(centralView, 36, 0); u32(centralView, 38, 0); u32(centralView, 42, offset); central.set(nameBytes, 46);
+          locals.push(local); centrals.push(central); offset += local.length;
+        });
+        const centralBytes = joinBytes(centrals); const end = new Uint8Array(22); const endView = new DataView(end.buffer);
+        u32(endView, 0, 0x06054b50); u16(endView, 4, 0); u16(endView, 6, 0); u16(endView, 8, files.length); u16(endView, 10, files.length); u32(endView, 12, centralBytes.length); u32(endView, 16, offset); u16(endView, 20, 0);
+        return joinBytes([...locals, centralBytes, end]);
+      }
+      function downloadWord() {
+        if (!els.source.value.trim()) { notify('请先输入需要导出的公文内容'); return; }
+        const analysis = analyze(els.source.value);
+        const format = $('wordFormat').value;
+        if (format === 'doc') {
+          downloadBlob(new Blob([wordHtml(analysis)], { type: 'application/msword' }), '公文轨范文稿.doc');
+          notify('已导出 Word DOC 文件'); return;
+        }
+        const files = [
+          ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'],
+          ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
+          ['word/document.xml', documentXml(analysis)]
+        ];
+        downloadBlob(new Blob([zip(files)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), '公文轨范文稿.docx');
+        notify('已导出 Word DOCX 文件');
+      }
+      function insertSignature() {
+        const now = new Date(); const date = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+        insertText(`\n\n单位名称\n${date}`); notify('已插入可编辑落款');
+      }
+      function bindEvents() {
+        els.source.addEventListener('input', () => {
+          if (looksLikeMarkdown(els.source.value)) {
+            const cleaned = cleanMarkdown(els.source.value);
+            if (cleaned !== els.source.value) els.source.value = cleaned;
+          }
+          render(); persist();
+        });
+        els.source.addEventListener('paste', (event) => {
+          const pasted = event.clipboardData?.getData('text/plain');
+          if (!pasted || !looksLikeMarkdown(pasted)) return;
+          event.preventDefault();
+          const start = els.source.selectionStart; const end = els.source.selectionEnd;
+          els.source.setRangeText(cleanMarkdown(pasted), start, end, 'end');
+          render(); persist(); notify('已自动清理粘贴内容中的 Markdown 标记');
+        });
+        els.quickFont.addEventListener('change', (event) => updateSetting('bodyFont', event.target.value));
+        els.quickSize.addEventListener('change', (event) => updateSetting('bodySize', event.target.value));
+        els.quickLine.addEventListener('change', (event) => readNumber(event.target, 'fixedLine'));
+        els.titleSize.addEventListener('change', (event) => updateSetting('titleSize', event.target.value));
+        els.titleFont.addEventListener('change', (event) => updateSetting('titleFont', event.target.value));
+        els.headingOneFont.addEventListener('change', (event) => updateSetting('headingOneFont', event.target.value));
+        els.headingTwoFont.addEventListener('change', (event) => updateSetting('headingTwoFont', event.target.value));
+        els.headingOtherFont.addEventListener('change', (event) => updateSetting('headingOtherFont', event.target.value));
+        [['marginTop', els.marginTop], ['marginBottom', els.marginBottom], ['marginLeft', els.marginLeft], ['marginRight', els.marginRight], ['paragraphGap', els.paragraphGap], ['fixedLine', els.fixedLine]].forEach(([key, input]) => input.addEventListener('change', () => readNumber(input, key)));
+        els.autoDetect.addEventListener('change', (event) => updateSetting('autoDetect', event.target.checked));
+        els.themeSwitch.addEventListener('change', (event) => updateSetting('theme', event.target.checked ? 'dark' : 'light'));
+        els.themeButton.addEventListener('click', () => updateSetting('theme', settings.theme === 'dark' ? 'light' : 'dark'));
+        $('settingsButton').addEventListener('click', () => els.dialog.showModal());
+        $('restoreDefaults').addEventListener('click', () => { settings = { ...DEFAULTS, theme: settings.theme }; applySettings(); notify('已恢复标准页面与字体设置'); });
+        $('loadSample').addEventListener('click', loadSample);
+        $('clearContent').addEventListener('click', () => { if (!els.source.value || confirm('确定清空当前文稿吗？')) { els.source.value = ''; render(); persist(); } });
+        $('copyText').addEventListener('click', copyText);
+        $('downloadText').addEventListener('click', downloadText);
+        $('downloadWord').addEventListener('click', downloadWord);
+        $('printDocument').addEventListener('click', () => window.print());
+        $('signatureButton').addEventListener('click', insertSignature);
+        $('cleanMarkdown').addEventListener('click', cleanSourceMarkdown);
+        document.querySelectorAll('[data-insert]').forEach((button) => button.addEventListener('click', () => insertText(button.dataset.insert)));
+      }
+      function init() {
+        populateSelects();
+        els.source.value = localStorage.getItem('official-document-content') || '';
+        bindEvents(); applySettings();
+      }
+      init();
+    })();
+  </script>
+</body>
+</html>
